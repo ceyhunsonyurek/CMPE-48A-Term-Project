@@ -75,6 +75,30 @@ gcloud artifacts docker images list \
     us-central1-docker.pkg.dev/url-shortener-479913/url-shortener-repo
 ```
 
+## Step 7: Create GKE Cluster
+
+```bash
+# Create GKE cluster (us-east1 region due to quota limits)
+gcloud container clusters create url-shortener-cluster \
+    --num-nodes=1 \
+    --machine-type=e2-small \
+    --region=us-east1 \
+    --enable-autorepair \
+    --enable-autoupgrade \
+    --disk-size=20 \
+    --disk-type=pd-standard
+
+# Configure kubectl
+gcloud container clusters get-credentials url-shortener-cluster --region=us-east1
+
+# Verify cluster
+kubectl cluster-info
+kubectl get nodes
+```
+
+**Note:** Free trial accounts have quota limits (IN_USE_ADDRESSES: 4 per region). 
+We used 1 node initially, but the cluster auto-scaled to 3 nodes for system pods.
+
 ## Troubleshooting
 
 ### If you get permission errors:
@@ -95,4 +119,10 @@ gcloud auth configure-docker us-central1-docker.pkg.dev
 ### If project access is denied:
 - Make sure the Gmail account has been added to the project with appropriate permissions
 - Contact project owner to grant access
+
+### If you get quota errors (IN_USE_ADDRESSES):
+- Free trial accounts have limited quotas (4 addresses per region)
+- Try using 1 node instead of 2
+- Or request quota increase (may take 1-2 business days)
+- Or use a different region
 
