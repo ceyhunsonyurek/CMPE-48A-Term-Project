@@ -4,7 +4,6 @@ flask
 plotly
 gradio
 gradio_client
-boto3
 google-cloud-storage
 python-dotenv
 gunicorn

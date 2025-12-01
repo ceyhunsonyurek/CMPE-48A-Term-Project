@@ -368,5 +368,15 @@ def logout():
     return redirect(url_for("login"))
 
 
+@application.route("/health")
+def health():
+    """Health check endpoint for Kubernetes and Docker."""
+    try:
+        # Basic health check - can be extended to check database, GCS, etc.
+        return {"status": "healthy", "service": "url-shortener"}, 200
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}, 503
+
+
 if __name__ == "__main__":
     application.run(debug=True)
