@@ -33,9 +33,10 @@
                     <td>{{ url['clicks'] }}</td>
                     <td>{{ url['created'] }}</td>
                     <td>
-                        <img src="https://team13.s3.eu-north-1.amazonaws.com/{{ url['short_url'].split('/')[-1] }}.png"
+                        {% set hash_id = url['short_url'].split('/')[-1] %}
+                        <img src="{{ gcs_base_url }}/{{ hash_id }}.png"
                             alt="Image" width="128" height="128"
-                            onclick="enlargeImage('{{url['short_url'].split('/')[-1] }}.png')">
+                            onclick="enlargeImage('{{ hash_id }}.png')">
                     </td>
                 </tr>
                 {% endfor %}
@@ -106,7 +107,7 @@
 <script>
     function enlargeImage(imageUrl) {
         var enlargedImg = document.getElementById("enlargedImg");
-        enlargedImg.src = "https://team13.s3.eu-north-1.amazonaws.com/" + imageUrl;
+        enlargedImg.src = "{{ gcs_base_url }}/" + imageUrl;
         $('#imageModal').modal('show');
     }
 </script>

@@ -5,8 +5,7 @@ from hashids import Hashids
 from flask import Flask, render_template, request, flash, redirect, url_for, session
 import plotly.graph_objects as go
 from gradio_client import Client
-import boto3
-from botocore.exceptions import NoCredentialsError
+from google.cloud import storage
 from plotly.subplots import make_subplots
 from dotenv import load_dotenv
 
@@ -22,9 +21,11 @@ def load_config():
             config = json.load(f)
     
     # Override with environment variables if they exist
-    aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", config.get("aws_access_key_id", ""))
-    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", config.get("aws_secret_access_key", ""))
-    bucket_name = os.getenv("BUCKET_NAME", config.get("bucket_name", ""))
+    # GCP Cloud Storage configuration
+    gcs_bucket_name = os.getenv("GCS_BUCKET_NAME", config.get("gcs_bucket_name", config.get("bucket_name", "")))
+    gcp_project_id = os.getenv("GCP_PROJECT_ID", config.get("gcp_project_id", ""))
+    
+    # Database configuration
     host = os.getenv("DB_HOST", config.get("db_host", "localhost"))
     port = int(os.getenv("DB_PORT", config.get("db_port", 3306)))
     user = os.getenv("DB_USER", config.get("db_user", ""))
@@ -32,9 +33,8 @@ def load_config():
     database = os.getenv("DB_DATABASE", config.get("db_database", ""))
     
     return {
-        "aws_access_key_id": aws_access_key_id,
-        "aws_secret_access_key": aws_secret_access_key,
-        "bucket_name": bucket_name,
+        "gcs_bucket_name": gcs_bucket_name,
+        "gcp_project_id": gcp_project_id,
         "host": host,
         "port": port,
         "user": user,
@@ -43,9 +43,8 @@ def load_config():
     }
 
 config = load_config()
-aws_access_key_id = config["aws_access_key_id"]
-aws_secret_access_key = config["aws_secret_access_key"]
-bucket_name = config["bucket_name"]
+gcs_bucket_name = config["gcs_bucket_name"]
+gcp_project_id = config["gcp_project_id"]
 host = config["host"]
 port = config["port"]
 user = config["user"]
@@ -61,27 +60,81 @@ if not client_uri:
 
 client = Client(client_uri) if client_uri else None
 
-s3 = boto3.client(
-    "s3",
-    aws_access_key_id=aws_access_key_id,
-    aws_secret_access_key=aws_secret_access_key,
-)
+# Initialize GCP Cloud Storage client
+# Note: GCP credentials should be set via GOOGLE_APPLICATION_CREDENTIALS env var or
+# the client will use default credentials from gcloud
+try:
+    if gcp_project_id:
+        gcs_client = storage.Client(project=gcp_project_id)
+    else:
+        gcs_client = storage.Client()
+except Exception as e:
+    print(f"Warning: Could not initialize GCS client: {e}")
+    print("GCS functionality will be disabled. Set GOOGLE_APPLICATION_CREDENTIALS or configure gcloud.")
+    gcs_client = None
 
 
-def upload_to_s3(file_path, bucket_name, s3_file_name):
+def upload_to_gcs(file_path, bucket_name, blob_name):
+    """
+    Upload a file to Google Cloud Storage bucket.
+    
+    Args:
+        file_path: Local path to the file to upload
+        bucket_name: Name of the GCS bucket
+        blob_name: Name of the blob (file) in the bucket
+        
+    Returns:
+        Public URL of the uploaded file, or None if upload fails
+    """
+    if not gcs_client:
+        print("Error: GCS client not initialized")
+        return None
+        
     try:
-        print("Uploading QR to S3")
-        s3.upload_file(file_path, bucket_name, s3_file_name)
-        return True
+        print(f"Uploading QR to GCS bucket: {bucket_name}")
+        bucket = gcs_client.bucket(bucket_name)
+        blob = bucket.blob(blob_name)
+        blob.upload_from_filename(file_path)
+        
+        # Make the blob publicly accessible
+        blob.make_public()
+        
+        # Return the public URL
+        public_url = blob.public_url
+        print(f"Upload successful: {public_url}")
+        return public_url
     except Exception as e:
-        print(f"Error uploading image to S3: {e}")
-        return False
+        print(f"Error uploading image to GCS: {e}")
+        return None
+
+
+def get_gcs_public_url(bucket_name, blob_name):
+    """
+    Get the public URL for a file in GCS bucket.
+    
+    Args:
+        bucket_name: Name of the GCS bucket
+        blob_name: Name of the blob (file) in the bucket
+        
+    Returns:
+        Public URL of the file
+    """
+    return f"https://storage.googleapis.com/{bucket_name}/{blob_name}"
 
 
 application = Flask(__name__)
 application.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "Divi")
 
 hashids = Hashids(min_length=4, salt=application.config["SECRET_KEY"])
+
+
+@application.context_processor
+def inject_gcs_config():
+    """Inject GCS bucket configuration into all templates."""
+    return {
+        'gcs_bucket_name': gcs_bucket_name,
+        'gcs_base_url': f"https://storage.googleapis.com/{gcs_bucket_name}" if gcs_bucket_name else ""
+    }
 
 
 def get_db_connection():
@@ -136,9 +189,13 @@ def index():
                 "ugly, disfigured, low quality, blurry, nsfw",  # str  in 'Negative Prompt' Textbox component
                 fn_index=0,
             )
-            upload_to_s3(result, bucket_name, f"{hashid}.png")
-            result = f"https://{bucket_name}.s3.eu-north-1.amazonaws.com/{hashid}.png"
-            print(result)
+            # Upload to GCS and get public URL
+            blob_name = f"{hashid}.png"
+            result = upload_to_gcs(result, gcs_bucket_name, blob_name)
+            if not result:
+                # Fallback to constructing URL if upload fails but file exists
+                result = get_gcs_public_url(gcs_bucket_name, blob_name)
+            print(f"QR code URL: {result}")
 
         return render_template("index.html", short_url=short_url, image_path=result)
 
