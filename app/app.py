@@ -52,11 +52,17 @@ password = config["password"]
 database = config["database"]
 
 # Gradio client initialization (can be set via environment variable)
+# In containerized environments, GRADIO_ENDPOINT must be set via env var
 client_uri = os.getenv("GRADIO_ENDPOINT", "")
 if not client_uri:
-    print("Run the Notebook to get the Generative Endpoint")
-    print("Notebook Link: https://www.kaggle.com/code/eswardivi/qr-code-generator")
-    client_uri = input("Enter the Generative Endpoint: ")
+    # Only prompt for input if running interactively (not in container)
+    if os.isatty(0):  # Check if stdin is a terminal
+        print("Run the Notebook to get the Generative Endpoint")
+        print("Notebook Link: https://www.kaggle.com/code/eswardivi/qr-code-generator")
+        client_uri = input("Enter the Generative Endpoint: ")
+    else:
+        print("Warning: GRADIO_ENDPOINT not set. QR code generation will be disabled.")
+        client_uri = None
 
 client = Client(client_uri) if client_uri else None
 
