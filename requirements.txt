@@ -5,3 +5,5 @@ plotly
 gradio
 gradio_client
 boto3
+python-dotenv
+gunicorn

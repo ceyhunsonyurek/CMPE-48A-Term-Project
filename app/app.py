@@ -1,5 +1,6 @@
 import pymysql
 import json
+import os
 from hashids import Hashids
 from flask import Flask, render_template, request, flash, redirect, url_for, session
 import plotly.graph_objects as go
@@ -7,24 +8,58 @@ from gradio_client import Client
 import boto3
 from botocore.exceptions import NoCredentialsError
 from plotly.subplots import make_subplots
+from dotenv import load_dotenv
 
-with open("config.json") as f:
-    config = json.load(f)
+# Load environment variables from .env file
+load_dotenv()
 
+# Load configuration from environment variables (fallback to config.json for backward compatibility)
+def load_config():
+    # Try to load from config.json first (for backward compatibility)
+    config = {}
+    if os.path.exists("config.json"):
+        with open("config.json") as f:
+            config = json.load(f)
+    
+    # Override with environment variables if they exist
+    aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", config.get("aws_access_key_id", ""))
+    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", config.get("aws_secret_access_key", ""))
+    bucket_name = os.getenv("BUCKET_NAME", config.get("bucket_name", ""))
+    host = os.getenv("DB_HOST", config.get("db_host", "localhost"))
+    port = int(os.getenv("DB_PORT", config.get("db_port", 3306)))
+    user = os.getenv("DB_USER", config.get("db_user", ""))
+    password = os.getenv("DB_PASSWORD", config.get("db_password", ""))
+    database = os.getenv("DB_DATABASE", config.get("db_database", ""))
+    
+    return {
+        "aws_access_key_id": aws_access_key_id,
+        "aws_secret_access_key": aws_secret_access_key,
+        "bucket_name": bucket_name,
+        "host": host,
+        "port": port,
+        "user": user,
+        "password": password,
+        "database": database
+    }
+
+config = load_config()
 aws_access_key_id = config["aws_access_key_id"]
 aws_secret_access_key = config["aws_secret_access_key"]
 bucket_name = config["bucket_name"]
-host = config["db_host"]
-port = config["db_port"]
-user = config["db_user"]
-password = config["db_password"]
-database = config["db_database"]
+host = config["host"]
+port = config["port"]
+user = config["user"]
+password = config["password"]
+database = config["database"]
 
+# Gradio client initialization (can be set via environment variable)
+client_uri = os.getenv("GRADIO_ENDPOINT", "")
+if not client_uri:
+    print("Run the Notebook to get the Generative Endpoint")
+    print("Notebook Link: https://www.kaggle.com/code/eswardivi/qr-code-generator")
+    client_uri = input("Enter the Generative Endpoint: ")
 
-print("Run the Notebook to get the Generative Endpoint")
-print("Notebook Link: https://www.kaggle.com/code/eswardivi/qr-code-generator")
-client_uri = input("Enter the Generative Endpoint: ")
-client = Client(client_uri)
+client = Client(client_uri) if client_uri else None
 
 s3 = boto3.client(
     "s3",
@@ -44,7 +79,7 @@ def upload_to_s3(file_path, bucket_name, s3_file_name):
 
 
 application = Flask(__name__)
-application.config["SECRET_KEY"] = "Divi"
+application.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "Divi")
 
 hashids = Hashids(min_length=4, salt=application.config["SECRET_KEY"])
 
@@ -93,7 +128,7 @@ def index():
         short_url, hashid = get_short_url(url_id)
 
         result = None
-        if img_desc:
+        if img_desc and client:
             print("Image is Generating")
             result = client.predict(
                 f"{short_url}",  # str  in 'QR Code Content' Textbox component
