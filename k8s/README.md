@@ -133,6 +133,68 @@ kubectl scale deployment url-shortener --replicas=3
 kubectl apply -f k8s/hpa.yaml
 ```
 
+## 5. Horizontal Pod Autoscaler (HPA)
+
+HPA automatically scales the number of pods based on CPU and memory usage.
+
+### Deploy HPA
+
+```bash
+kubectl apply -f k8s/hpa.yaml
+```
+
+### Verify HPA
+
+```bash
+# Check HPA status
+kubectl get hpa url-shortener-hpa
+
+# Watch HPA in real-time
+kubectl get hpa url-shortener-hpa -w
+
+# Describe HPA for detailed information
+kubectl describe hpa url-shortener-hpa
+```
+
+### HPA Configuration
+
+- **Min Replicas:** 2 (always maintain at least 2 pods)
+- **Max Replicas:** 10 (can scale up to 10 pods)
+- **CPU Threshold:** 70% (scale up if average CPU > 70%)
+- **Memory Threshold:** 80% (scale up if average memory > 80%)
+
+### Test HPA
+
+1. **Generate Load:**
+   ```bash
+   # Get external IP
+   EXTERNAL_IP=$(kubectl get service url-shortener-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+   
+   # Generate load (install hey: brew install hey)
+   hey -n 10000 -c 50 http://$EXTERNAL_IP/
+   ```
+
+2. **Watch Scaling:**
+   ```bash
+   # In another terminal
+   kubectl get hpa url-shortener-hpa -w
+   kubectl get pods -w
+   ```
+
+### Troubleshooting
+
+**HPA shows `<unknown>` metrics:**
+- GKE clusters usually have metrics-server pre-installed
+- If metrics not available, check:
+  ```bash
+  kubectl get apiservice | grep metrics
+  kubectl top nodes  # Should show CPU/memory usage
+  ```
+
+**HPA not scaling:**
+- Ensure deployment has resource requests/limits (already configured)
+- Check HPA events: `kubectl describe hpa url-shortener-hpa`
+
 ## Cleanup
 
 ```bash
