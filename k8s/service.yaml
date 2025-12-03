@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: url-shortener-service
+  namespace: default
+  labels:
+    app: url-shortener
+spec:
+  type: LoadBalancer  # Use LoadBalancer for external access (or ClusterIP for internal)
+  ports:
+  - port: 80
+    targetPort: 5000
+    protocol: TCP
+    name: http
+  selector:
+    app: url-shortener
+  sessionAffinity: ClientIP  # Helps with session management
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+
