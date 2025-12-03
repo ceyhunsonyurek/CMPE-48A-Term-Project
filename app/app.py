@@ -3,9 +3,11 @@ import json
 import os
 import tempfile
 import logging
+import hashlib
 from datetime import datetime
+from io import BytesIO
 from hashids import Hashids
-from flask import Flask, render_template, request, flash, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, flash, redirect, url_for, session, jsonify, send_file, Response
 import plotly.graph_objects as go
 import qrcode
 from google.cloud import storage
@@ -112,16 +114,33 @@ def get_db_connection():
 # Initialize GCP Cloud Storage client
 # Note: GCP credentials should be set via GOOGLE_APPLICATION_CREDENTIALS env var or
 # the client will use default credentials from gcloud
+# Explicitly set scopes for GCS operations
 try:
+    from google.cloud import storage
+    from google.auth import default
+    
+    # Get default credentials with storage-specific scopes
+    # Use cloud-platform scope for full access (required for GKE service accounts)
+    credentials, project = default(scopes=['https://www.googleapis.com/auth/cloud-platform'])
+    
     if gcp_project_id:
-        gcs_client = storage.Client(project=gcp_project_id)
+        gcs_client = storage.Client(project=gcp_project_id, credentials=credentials)
     else:
-        gcs_client = storage.Client()
-    logger.info("GCS client initialized successfully")
+        gcs_client = storage.Client(credentials=credentials)
+    logger.info("GCS client initialized successfully with storage scopes")
 except Exception as e:
     logger.warning(f"Could not initialize GCS client: {e}")
-    logger.warning("GCS functionality will be disabled. Set GOOGLE_APPLICATION_CREDENTIALS or configure gcloud.")
-    gcs_client = None
+    # Fallback: try without explicit scopes (let default handle it)
+    try:
+        if gcp_project_id:
+            gcs_client = storage.Client(project=gcp_project_id)
+        else:
+            gcs_client = storage.Client()
+        logger.info("GCS client initialized with default credentials")
+    except Exception as e2:
+        logger.warning(f"Fallback GCS client initialization also failed: {e2}")
+        logger.warning("GCS functionality will be disabled.")
+        gcs_client = None
 
 
 def upload_to_gcs(file_path, bucket_name, blob_name):
@@ -254,7 +273,16 @@ def insert_url(url, user_id):
 
 def get_short_url(url_id):
     hashid = hashids.encode(url_id)
-    short_url = request.host_url + hashid
+    # If Cloud Function redirect is enabled, use Cloud Function URL directly
+    use_cloud_function = os.getenv("USE_CLOUD_FUNCTION_REDIRECT", "false").lower() == "true"
+    cloud_function_url = os.getenv("CLOUD_FUNCTION_REDIRECT_URL", "")
+    
+    if use_cloud_function and cloud_function_url:
+        # Use Cloud Function URL directly for QR codes (no Flask app redirect needed)
+        short_url = f"{cloud_function_url}/{hashid}"
+    else:
+        # Fallback to Flask app URL
+        short_url = request.host_url + hashid
     return short_url, hashid
 
 
@@ -268,7 +296,6 @@ def index():
     if request.method == "POST":
         try:
             url = request.form.get("url", "").strip()
-            img_desc = request.form.get("image-description", "").strip()
             
             if not url:
                 flash("The URL is required!")
@@ -288,9 +315,8 @@ def index():
                 blob_name = f"{hashid}.png"
                 result = upload_to_gcs(qr_path, gcs_bucket_name, blob_name)
                 if not result:
-                    # Fallback to constructing URL if upload fails but file exists
-                    result = get_gcs_public_url(gcs_bucket_name, blob_name)
-                    logger.warning(f"GCS upload failed, using fallback URL: {result}")
+                    logger.error(f"GCS upload failed for {blob_name}. QR code will not be displayed.")
+                    result = None
                 
                 # Clean up temp file
                 try:
@@ -325,8 +351,7 @@ def url_redirect(id):
         original_id = hashids.decode(id)
         if not original_id:
             logger.warning(f"Invalid hashid: {id}")
-            flash("Invalid URL")
-            return redirect(url_for("index"))
+            return "Invalid URL", 404
         
         original_id = original_id[0]
         
@@ -338,8 +363,13 @@ def url_redirect(id):
                 url_data = cursor.fetchone()
 
             if url_data:
-                original_url = url_data[0]
-                clicks = url_data[1]
+                # Handle both dict and tuple results
+                if isinstance(url_data, dict):
+                    original_url = url_data["original_url"]
+                    clicks = url_data["clicks"]
+                else:
+                    original_url = url_data[0]
+                    clicks = url_data[1]
 
                 with conn.cursor() as cursor:
                     cursor.execute(
@@ -352,12 +382,56 @@ def url_redirect(id):
                 return redirect(original_url)
             else:
                 logger.warning(f"URL not found for id: {original_id}")
-                flash("Invalid URL")
-                return redirect(url_for("index"))
+                return "URL not found", 404
     except Exception as e:
         logger.error(f"Error in url_redirect: {e}", exc_info=True)
         flash("An error occurred while redirecting. Please try again.")
         return redirect(url_for("index"))
+
+
+@application.route("/download-qr/<hashid>")
+def download_qr(hashid):
+    """
+    Download QR code image from GCS.
+    This endpoint serves the QR code as a downloadable file.
+    """
+    try:
+        if not gcs_client or not gcs_bucket_name:
+            logger.error("GCS client or bucket not configured")
+            return "QR code download not available", 503
+        
+        blob_name = f"{hashid}.png"
+        bucket = gcs_client.bucket(gcs_bucket_name)
+        blob = bucket.blob(blob_name)
+        
+        if not blob.exists():
+            logger.warning(f"QR code not found: {blob_name}")
+            return "QR code not found", 404
+        
+        # Download blob to BytesIO (in-memory)
+        image_data = BytesIO()
+        blob.download_to_file(image_data)
+        image_data.seek(0)
+        
+        logger.info(f"Serving QR code download: {blob_name}")
+        
+        # Create response with explicit headers for forced download
+        response = Response(
+            image_data.getvalue(),
+            mimetype='image/png',
+            headers={
+                'Content-Disposition': f'attachment; filename="{hashid}.png"',
+                'Content-Type': 'image/png',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        )
+        return response
+    except Exception as e:
+        _metrics['errors_total'] += 1
+        logger.error(f"Error downloading QR code: {e}", exc_info=True)
+        return "Error downloading QR code", 500
 
 
 @application.route("/stats")
@@ -381,25 +455,66 @@ def stats():
         urls = []
         clicks_data = []
         for url in db_urls:
+            # Handle both dict and tuple results
+            if isinstance(url, dict):
+                url_id = url["id"]
+                created = url["created"]
+                original_url = url["original_url"]
+                clicks = url["clicks"]
+            else:
+                url_id = url[0]
+                created = url[1]
+                original_url = url[2]
+                clicks = url[3]
+            
+            hashid = hashids.encode(url_id)
+            # Use Cloud Function URL if enabled, otherwise Flask app URL
+            use_cloud_function = os.getenv("USE_CLOUD_FUNCTION_REDIRECT", "false").lower() == "true"
+            cloud_function_url = os.getenv("CLOUD_FUNCTION_REDIRECT_URL", "")
+            
+            if use_cloud_function and cloud_function_url:
+                short_url = f"{cloud_function_url}/{hashid}"
+            else:
+                short_url = request.host_url + hashid
+            
             url_data = {
-                "id": url[0],
-                "created": url[1],
-                "original_url": url[2],
-                "clicks": url[3],
+                "id": url_id,
+                "created": created,
+                "original_url": original_url,
+                "clicks": clicks,
+                "short_url": short_url,
+                "hashid": hashid
             }
-            url_data["short_url"] = request.host_url + hashids.encode(url_data["id"])
             urls.append(url_data)
-            clicks_data.append(url_data["clicks"])
+            clicks_data.append(clicks)
 
-        # Create a bar graph showing number of clicks per URL
-        fig1 = go.Figure(data=[go.Bar(x=[url["short_url"] for url in urls], y=clicks_data)])
+        # Create a bar graph showing number of clicks per URL (show only last 4 chars of hashid)
+        fig1 = go.Figure(data=[go.Bar(
+            x=[url["hashid"][-4:] for url in urls], 
+            y=clicks_data,
+            marker_color='#4285f4'
+        )])
         fig1.update_layout(
             xaxis_title="URL",
             yaxis_title="Number of Clicks",
+            plot_bgcolor='#1e2432',
+            paper_bgcolor='#1e2432',
+            font_color='#e8eaed',
+            xaxis=dict(gridcolor='#3c4043', linecolor='#3c4043'),
+            yaxis=dict(gridcolor='#3c4043', linecolor='#3c4043'),
         )
 
-        # Create a pie chart showing the distribution of clicks among URLs
-        fig2 = go.Figure(data=[go.Pie(labels=[url["short_url"] for url in urls], values=clicks_data)])
+        # Create a pie chart showing the distribution of clicks among URLs (show only last 4 chars of hashid)
+        fig2 = go.Figure(data=[go.Pie(
+            labels=[url["hashid"][-4:] for url in urls], 
+            values=clicks_data,
+            marker=dict(colors=['#4285f4', '#1a73e8', '#1967d2', '#34a853', '#ea4335', '#fbbc04', '#ff6d00', '#9c27b0'])
+        )])
+        fig2.update_layout(
+            plot_bgcolor='#1e2432',
+            paper_bgcolor='#1e2432',
+            font_color='#e8eaed',
+        )
 
         graph1 = fig1.to_html(full_html=False)
         graph2 = fig2.to_html(full_html=False)
@@ -445,10 +560,12 @@ def register():
                         return redirect(url_for("register"))
 
                 # Create a new user
+                # Hash password with SHA256 before storing
+                password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
                 with conn.cursor() as cursor:
                     cursor.execute(
                         "INSERT INTO users (username, password) VALUES (%s, %s)",
-                        (username, password),
+                        (username, password_hash),
                     )
                 conn.commit()
                 logger.info(f"New user registered: {username}")
@@ -457,7 +574,7 @@ def register():
             flash("An error occurred during registration. Please try again.")
             return redirect(url_for("register"))
 
-        flash("Registration successful! You can now log in.")
+        flash("Registration successful! You can now log in.", "success")
         return redirect(url_for("login"))
 
     return render_template("register.html")
@@ -476,19 +593,29 @@ def login():
 
         # Check if the username and password are valid
         try:
+            # Hash the provided password with SHA256
+            password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+            
             with get_db_connection() as conn:
                 with conn.cursor() as cursor:
                     cursor.execute(
                         "SELECT id, username FROM users WHERE username = %s AND password = %s",
-                        (username, password),
+                        (username, password_hash),
                     )
                     user = cursor.fetchone()
 
             if user:
-                session["user_id"] = user[0]
-                session["username"] = user[1]
-                logger.info(f"User logged in: {username} (id: {user[0]})")
-                flash("Login successful!")
+                # Handle both tuple and dict results (DictCursor vs regular cursor)
+                if isinstance(user, dict):
+                    user_id = user["id"]
+                    session["user_id"] = user_id
+                    session["username"] = user["username"]
+                else:
+                    user_id = user[0]
+                    session["user_id"] = user_id
+                    session["username"] = user[1]
+                logger.info(f"User logged in: {username} (id: {user_id})")
+                flash("Login successful!", "success")
                 return redirect(url_for("index"))
             else:
                 logger.warning(f"Failed login attempt for username: {username}")
@@ -506,7 +633,7 @@ def login():
 def logout():
     session.pop("user_id", None)
     session.pop("username", None)
-    flash("You have been logged out.")
+    flash("You have been logged out.", "success")
     return redirect(url_for("login"))
 
 

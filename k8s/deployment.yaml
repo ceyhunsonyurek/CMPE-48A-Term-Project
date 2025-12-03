@@ -17,6 +17,7 @@ spec:
         app: url-shortener
         version: v1
     spec:
+      serviceAccountName: default
       containers:
       - name: url-shortener
         image: us-central1-docker.pkg.dev/url-shortener-479913/url-shortener-repo/url-shortener:latest
@@ -77,9 +78,13 @@ spec:
               key: SECRET_KEY
         
         # GCP Authentication (for GCS access)
-        # Uses Workload Identity or default service account
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: ""  # Leave empty to use default credentials
+          value: "/etc/gcs-key/key.json"
+        
+        volumeMounts:
+        - name: gcs-key
+          mountPath: /etc/gcs-key
+          readOnly: true
         
         resources:
           requests:
@@ -106,4 +111,8 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
-
+      
+      volumes:
+      - name: gcs-key
+        secret:
+          secretName: gcs-key

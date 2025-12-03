@@ -19,7 +19,7 @@ CREATE TABLE users (
 **Example:**
 ```
 id | username | password
-1  | testuser | testpass
+1  | testuser | testpass123
 ```
 
 ---

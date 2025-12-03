@@ -1,103 +1,103 @@
-{% extends 'base.html' %} {% block title %}URL Shortener - Home{% endblock %} {%
-block styles %}
-<style>
-    .container {
-        margin-top: 30px;
-    }
-
-    .jumbotron {
-        background-color: #f8f9fa;
-        padding: 30px;
-    }
-
-    .short-url {
-        background-color: #e9ecef;
-        padding: 10px;
-        border-radius: 5px;
-        word-wrap: break-word;
-    }
-
-    .url-form {
-        margin-top: 20px;
-    }
-
-    .url-form label {
-        font-weight: bold;
-    }
-
-    .corner-links {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-    }
-</style>
-
-
-
+{% extends 'base.html' %}
+{% block title %}URL Shortener - Home{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 {% endblock %}
+
 {% block content %}
-<div class="container custom-container">
-    <div class="jumbotron text-center">
+<div class="hero-section">
+    <h1 class="hero-title">
+        <i class="fas fa-magic"></i> SwiftShort
+    </h1>
+    <p class="hero-subtitle">Transform long URLs into short, shareable links with QR codes</p>
+</div>
+
+<div class="container">
+    <div class="url-card">
         {% if 'user_id' in session %}
-        <h1 class="display-4">Welcome, {{ session['username'] }}!</h1>
-        <p class="lead lead-custom">Your Short URL:</p>
-        <a href="{{ short_url }}" class="short-url">{{ short_url }}</a>
-        {% else %}
-        <p class="lead">You must be logged in to access this page.</p>
+        <div class="welcome-message">
+            Welcome back, <span class="username-highlight">{{ session['username'] }}</span>! 👋
+        </div>
+        {% endif %}
+
+        {% if short_url %}
+        <div class="short-url-display">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+                <div>
+                    <i class="fas fa-link"></i> Your Short URL:
+                    <br>
+                    <a href="{{ short_url }}" target="_blank" id="shortUrlLink">{{ short_url }}</a>
+                </div>
+                <button class="btn-copy" onclick="copyToClipboard('{{ short_url }}', this)" title="Copy Short URL">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        </div>
         {% endif %}
 
         <form method="POST" action="{{ url_for('index') }}" class="url-form">
             <div class="form-group">
-                <label for="url">URL:</label>
-                <input type="text" id="url" name="url" class="form-control" placeholder="Enter URL" required>
+                <label for="url">
+                    <i class="fas fa-globe"></i> Enter URL to Shorten
+                </label>
+                <input type="url" id="url" name="url" class="form-control" 
+                    placeholder="https://example.com" required>
             </div>
 
-            <!-- New Feature: QR Code Description -->
-            <div class="form-group">
-                <label for="image-description">QR Code Description:</label>
-                <input type="text" id="image-description" name="image-description" class="form-control"
-                    placeholder="Enter Image Description" required>
+            {% if image_path %}
+            <div class="qr-code-container">
+                <h5 style="color: var(--text-secondary); margin-bottom: 1rem;">
+                    <i class="fas fa-qrcode"></i> Your QR Code
+                </h5>
+                <img src="{{ image_path }}" alt="QR Code" class="img-fluid" id="qrCodeImage">
+                <button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" onclick="downloadQRCode()">
+                    <i class="fas fa-download"></i> Download QR Code
+                </button>
             </div>
-
-            <!-- New Feature: QR Code Display -->
-            <div class="form-group">
-                {% if image_path %}
-                <img src="{{ image_path }}" alt="Image" class="img-fluid" style="width: 512px; height: 512px;">
-
-                <!-- New Feature: Social Media Sharing -->
-                <div class="social-media-sharing">
-                    <p>Share on:</p>
-                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ short_url }}&quote=🌟 I created this beautiful QR code using this site. Check it out: {{ short_url }}"
-                        target="_blank" class="btn btn-primary">Facebook</a>
-                    <a href="https://twitter.com/intent/tweet?url={{ short_url }}&text=🌟 I created this beautiful QR code using this site. Check it out: {{ short_url }}"
-                        target="_blank" class="btn btn-primary">Twitter</a>
-                    <a href="https://www.linkedin.com/shareArticle?mini=true&url={{ short_url }}&title=🌟 I created this beautiful QR code using this site. Check it out: {{ short_url }}"
-                        target="_blank" class="btn btn-primary">LinkedIn</a>
-                    <!-- Add more social media sharing buttons as needed -->
+            {% else %}
+            <div class="qr-code-container">
+                <div style="width: 300px; height: 300px; margin: 0 auto; background: var(--bg-secondary); border: 2px dashed var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                    <i class="fas fa-qrcode" style="font-size: 4rem; color: var(--text-secondary); opacity: 0.5; margin-bottom: 1rem;"></i>
+                    <p style="color: var(--text-secondary); text-align: center; padding: 0 1rem;">
+                        QR code will appear here after shortening
+                    </p>
                 </div>
-
-                {% else %}
-                <img src="{{ gcs_base_url }}/Loading_Animation.gif" alt="Placeholder Image"
-                    class="img-fluid" style="width: 512px; height: 512px;">
-                {% endif %}
             </div>
+            {% endif %}
 
-            <button type="submit" class="btn btn-primary">Shorten URL</button>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top: 1.5rem;">
+                <i class="fas fa-compress"></i> Shorten URL
+            </button>
         </form>
-
     </div>
 </div>
+{% endblock %}
 
-<!-- New Feature: User Authentication Links -->
-<div class="corner-links">
-    {% if 'user_id' in session %}
-    <a href="{{ url_for('logout') }}" class="btn btn-primary">Logout</a>
-    {% else %}
-    <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
-    {% endif %}
-</div>
-
-<!-- Additional Features: User Registration, User Dashboard, URL Analytics, Customized Short URLs, URL Expiration, API Integration, Password-Protected URLs, URL Categorization -->
-<!-- Add appropriate HTML elements and links for these features -->
-
+{% block scripts %}
+<script>
+    function downloadQRCode() {
+        const qrImage = document.getElementById('qrCodeImage');
+        if (!qrImage || !qrImage.src) return;
+        
+        // Extract hashid from image src
+        const imageSrc = qrImage.src;
+        const hashid = imageSrc.split('/').pop().split('.')[0];
+        
+        // Use backend download endpoint - force download without dialog
+        const downloadUrl = '/download-qr/' + hashid;
+        
+        // Method 1: Direct link click (works in most browsers)
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = hashid + '.png';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up after a short delay
+        setTimeout(function() {
+            document.body.removeChild(link);
+        }, 100);
+    }
+</script>
 {% endblock %}
