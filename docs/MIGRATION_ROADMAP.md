@@ -30,25 +30,24 @@ CURRENT:
 [Flask App] → [MySQL] → [AWS S3] → [Gradio API]
 
 TARGET:
-[GKE Pods] → [VM: MySQL] → [Cloud Storage] → [Gradio API]
+[GKE Pods] → [VM: MySQL] → [Cloud Storage] → [QR Generator (Python lib)]
      ↓
-[Cloud Functions] → [VM: Redis/Cache] → [VM: Monitoring]
+[Cloud Functions] → [URL Redirect]
 ```
 
 ### Component Distribution Recommendation
 
 1. **Kubernetes (GKE):**
    - Flask web application (main application)
+   - QR code generation (using Python qrcode library - internal)
    - Automatic scaling with HPA
 
 2. **VMs (Compute Engine):**
    - **VM 1:** MySQL Database Server (functional role)
-   - **VM 2:** Redis Cache + Session Store (optional but recommended)
-   - **VM 3:** Monitoring/Logging (Prometheus/Grafana) - optional
+   - **VM 2:** Redis Cache + Session Store (deferred - evaluate after Locust tests)
 
 3. **Cloud Functions:**
    - URL redirection operation (async, fast response)
-   - QR code generation triggering (async processing)
    - Webhook handler (optional)
 
 4. **Cloud Storage:**
@@ -314,9 +313,10 @@ TARGET:
 
 ---
 
-#### 3.3 Redis Cache VM (Optional but Recommended)
+#### 3.3 Redis Cache VM (Deferred - Evaluate After Locust Tests)
 **Duration:** 1 day  
 **Difficulty:** Medium
+**Status:** ⏸️ **DEFERRED** - Will be evaluated after Locust performance tests
 
 **Tasks:**
 - [ ] Create Redis VM instance
@@ -327,12 +327,12 @@ TARGET:
 - [ ] Use Redis for URL cache (frequently used URLs)
 - [ ] Connection pooling
 
-**Why Recommended:**
-- Required for session management (multi-pod scenario)
-- Performance improvement
-- Strengthens VM's functional role
+**Why Deferred:**
+- Evaluate performance needs after Locust tests
+- May not be necessary if session management works with current setup
+- Can be added later if performance bottlenecks are identified
 
-**Output:** Redis cache VM (optional)
+**Output:** Redis cache VM (if needed after testing)
 
 ---
 
@@ -374,32 +374,40 @@ TARGET:
 
 ---
 
-#### 4.2 QR Code Generation Trigger Function
-**Duration:** 2-3 days  
-**Difficulty:** Hard
+#### 4.2 QR Code Generation - Internal Implementation
+**Duration:** 1-2 days  
+**Difficulty:** Easy-Medium
 
 **Tasks:**
-- [ ] Create Pub/Sub topic for async QR code generation
-- [ ] Create `cloud-functions/qr-generator/main.py`:
+- [ ] Replace Gradio client with Python `qrcode` library
+- [ ] Update `requirements.txt`: Add `qrcode[pil]`
+- [ ] Create `generate_qr_code()` function in `app.py`:
   ```python
-  from google.cloud import pubsub_v1
-  from google.cloud import storage
-  from gradio_client import Client
+  import qrcode
+  import tempfile
   
-  def qr_generation_trigger(request):
-      # Receive Pub/Sub message
-      # Generate QR code with Gradio client
-      # Upload to GCS
-      # Update status in database
+  def generate_qr_code(short_url, hashid):
+      qr = qrcode.QRCode(version=1, box_size=10, border=4)
+      qr.add_data(short_url)
+      qr.make(fit=True)
+      img = qr.make_image(fill_color="black", back_color="white")
+      temp_path = f"/tmp/{hashid}.png"
+      img.save(temp_path)
+      return temp_path
   ```
-- [ ] Deploy Cloud Function (Pub/Sub trigger)
-- [ ] Make QR generation async in Flask app:
-  - Register URL
-  - Publish Pub/Sub message
-  - Return immediate response (until QR code is ready)
-- [ ] Add status polling endpoint (is QR code ready?)
+- [ ] Update `index()` route to use internal QR generation
+- [ ] Remove Gradio client dependency
+- [ ] Test QR code generation and GCS upload
+- [ ] Optional: Add QR code customization (colors, logo, etc.)
 
-**Output:** Async QR code generation
+**Why Internal:**
+- No external API dependency
+- Faster response time
+- No additional costs
+- More reliable (no external service downtime)
+- Full control over QR code generation
+
+**Output:** Internal QR code generation using Python library
 
 ---
 
@@ -632,17 +640,9 @@ TARGET:
 
 ## 📊 Recommended Additional Features (Optional)
 
-### 1. Monitoring VM (Recommended)
-**Why:** Strengthens VM's functional role, improves system monitoring
-
-**Tasks:**
-- [ ] Prometheus + Grafana VM setup
-- [ ] Kubernetes metrics scraping
-- [ ] Custom dashboards
-- [ ] Alerting rules
-
-**Difficulty:** Medium  
-**Duration:** 1-2 days
+### 1. Monitoring VM
+**Status:** ❌ **NOT NEEDED** - Removed from roadmap
+**Note:** GCP Cloud Monitoring provides sufficient monitoring capabilities
 
 ---
 
@@ -711,7 +711,8 @@ TARGET:
 - Level 2 (Medium): Docker, GKE, Kubernetes deployment, HPA
 
 ### Week 3-4: VM and Database
-- Level 3 (Medium-Hard): MySQL VM, Network, Redis (optional)
+- Level 3 (Medium-Hard): MySQL VM, Network
+- Redis VM: Deferred (evaluate after Locust tests)
 
 ### Week 5-6: Cloud Functions and Refactoring
 - Level 4 (Hard): Cloud Functions, Flask refactoring
