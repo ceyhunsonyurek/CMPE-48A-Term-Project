@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: url-shortener-config
+  namespace: default
+data:
+  # GCP Configuration
+  GCP_PROJECT_ID: "url-shortener-479913"
+  GCS_BUCKET_NAME: "url-shortener-assets"
+  
+  # Database Configuration (non-sensitive)
+  DB_HOST: "10.142.0.15"  # MySQL VM internal IP
+  DB_PORT: "3306"
+  DB_DATABASE: "urlshortener"
+  
+        # Application Configuration
+        FLASK_ENV: "production"
+        
+        # Cloud Function Configuration (optional)
+        USE_CLOUD_FUNCTION_REDIRECT: "true"
+        CLOUD_FUNCTION_REDIRECT_URL: "https://us-east1-url-shortener-479913.cloudfunctions.net/url-redirect"
+
