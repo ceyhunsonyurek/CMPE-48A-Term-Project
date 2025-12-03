@@ -2,8 +2,7 @@ pymysql
 hashids
 flask
 plotly
-gradio
-gradio_client
+qrcode[pil]
 google-cloud-storage
 python-dotenv
 gunicorn

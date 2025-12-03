@@ -1,10 +1,11 @@
 import pymysql
 import json
 import os
+import tempfile
 from hashids import Hashids
 from flask import Flask, render_template, request, flash, redirect, url_for, session
 import plotly.graph_objects as go
-from gradio_client import Client
+import qrcode
 from google.cloud import storage
 from plotly.subplots import make_subplots
 from dotenv import load_dotenv
@@ -51,20 +52,8 @@ user = config["user"]
 password = config["password"]
 database = config["database"]
 
-# Gradio client initialization (can be set via environment variable)
-# In containerized environments, GRADIO_ENDPOINT must be set via env var
-client_uri = os.getenv("GRADIO_ENDPOINT", "")
-if not client_uri:
-    # Only prompt for input if running interactively (not in container)
-    if os.isatty(0):  # Check if stdin is a terminal
-        print("Run the Notebook to get the Generative Endpoint")
-        print("Notebook Link: https://www.kaggle.com/code/eswardivi/qr-code-generator")
-        client_uri = input("Enter the Generative Endpoint: ")
-    else:
-        print("Warning: GRADIO_ENDPOINT not set. QR code generation will be disabled.")
-        client_uri = None
-
-client = Client(client_uri) if client_uri else None
+# QR code generation is now handled internally using qrcode library
+# No external API dependencies required
 
 # Initialize GCP Cloud Storage client
 # Note: GCP credentials should be set via GOOGLE_APPLICATION_CREDENTIALS env var or
@@ -128,6 +117,44 @@ def get_gcs_public_url(bucket_name, blob_name):
     return f"https://storage.googleapis.com/{bucket_name}/{blob_name}"
 
 
+def generate_qr_code(short_url, hashid):
+    """
+    Generate QR code locally using qrcode library.
+    
+    Args:
+        short_url: The URL to encode in the QR code
+        hashid: Unique identifier for the QR code file name
+        
+    Returns:
+        Path to the generated QR code image file
+    """
+    try:
+        # Create QR code instance
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(short_url)
+        qr.make(fit=True)
+        
+        # Create image
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Save to temp directory
+        temp_dir = tempfile.gettempdir()
+        os.makedirs(temp_dir, exist_ok=True)
+        temp_path = os.path.join(temp_dir, f"{hashid}.png")
+        img.save(temp_path)
+        
+        print(f"QR code generated: {temp_path}")
+        return temp_path
+    except Exception as e:
+        print(f"Error generating QR code: {e}")
+        return None
+
+
 application = Flask(__name__)
 application.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "Divi")
 
@@ -186,22 +213,26 @@ def index():
         url_id = insert_url(url, user_id)
         short_url, hashid = get_short_url(url_id)
 
+        # Generate QR code internally using qrcode library
         result = None
-        if img_desc and client:
-            print("Image is Generating")
-            result = client.predict(
-                f"{short_url}",  # str  in 'QR Code Content' Textbox component
-                f"{img_desc}",  # str  in 'Prompt' Textbox component
-                "ugly, disfigured, low quality, blurry, nsfw",  # str  in 'Negative Prompt' Textbox component
-                fn_index=0,
-            )
+        print("Generating QR code...")
+        qr_path = generate_qr_code(short_url, hashid)
+        
+        if qr_path and gcs_bucket_name:
             # Upload to GCS and get public URL
             blob_name = f"{hashid}.png"
-            result = upload_to_gcs(result, gcs_bucket_name, blob_name)
+            result = upload_to_gcs(qr_path, gcs_bucket_name, blob_name)
             if not result:
                 # Fallback to constructing URL if upload fails but file exists
                 result = get_gcs_public_url(gcs_bucket_name, blob_name)
             print(f"QR code URL: {result}")
+            
+            # Clean up temp file
+            try:
+                if os.path.exists(qr_path):
+                    os.remove(qr_path)
+            except Exception as e:
+                print(f"Warning: Could not remove temp file {qr_path}: {e}")
 
         return render_template("index.html", short_url=short_url, image_path=result)
 
