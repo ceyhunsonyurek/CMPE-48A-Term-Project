@@ -3,6 +3,8 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: url-shortener-hpa
   namespace: default
+  annotations:
+    autoscaling.gke.io/disable-per-pod-scaling: "true"  # Disable GKE Performance Profile
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -25,11 +27,15 @@ spec:
         averageUtilization: 80
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 300  # 5 minutes - prevent rapid scale down
+      stabilizationWindowSeconds: 180  # 3 minutes - faster scale down
       policies:
       - type: Percent
         value: 50
         periodSeconds: 60  # Scale down max 50% per minute
+      - type: Pods
+        value: 1
+        periodSeconds: 60  # Or remove 1 pod per minute
+      selectPolicy: Max  # Use the more aggressive policy
     scaleUp:
       stabilizationWindowSeconds: 0  # Scale up immediately
       policies:
