@@ -6,3 +6,4 @@ qrcode[pil]
 google-cloud-storage
 python-dotenv
 gunicorn
+cryptography
