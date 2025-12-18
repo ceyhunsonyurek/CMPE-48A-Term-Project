@@ -19,6 +19,11 @@
         </h3>
         
         {% if urls %}
+        {% if has_more %}
+        <div class="alert alert-info" style="margin-bottom: 1rem;">
+            <i class="fas fa-info-circle"></i> Showing last {{ urls|length }} URLs out of {{ total_urls }} total. Most recent URLs are displayed first.
+        </div>
+        {% endif %}
         <!-- Desktop Table View -->
         <div class="table-responsive-wrapper">
             <table class="urls-table">
@@ -127,26 +132,6 @@
     </div>
 
     {% if urls %}
-    <div class="stats-card">
-        <h3 style="color: var(--text-primary); margin-bottom: 1.5rem;">
-            <i class="fas fa-chart-pie"></i> Analytics
-        </h3>
-        <div class="charts-row">
-            <div class="chart-wrapper">
-                <h5 class="chart-title">Clicks per URL</h5>
-                <div class="chart-container">
-                    {{ graph1 | safe }}
-                </div>
-            </div>
-            <div class="chart-wrapper">
-                <h5 class="chart-title">Click Distribution</h5>
-                <div class="chart-container">
-                    {{ graph2 | safe }}
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="stats-summary">
         <div class="stat-item">
             <div class="stat-value">{{ total_urls }}</div>

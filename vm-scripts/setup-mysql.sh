@@ -50,7 +50,9 @@ CREATE TABLE IF NOT EXISTS urls (
     user_id INT NOT NULL,
     clicks INT DEFAULT 0,
     created DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_user_id_created (user_id, created)
 );
 EOF
 

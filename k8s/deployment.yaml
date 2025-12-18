@@ -59,6 +59,16 @@ spec:
             configMapKeyRef:
               name: url-shortener-config
               key: FLASK_ENV
+        - name: DB_POOL_MIN_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: url-shortener-config
+              key: DB_POOL_MIN_SIZE
+        - name: DB_POOL_MAX_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: url-shortener-config
+              key: DB_POOL_MAX_SIZE
         
         # Secret values
         - name: DB_USER
@@ -88,29 +98,29 @@ spec:
         
         resources:
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: 500m      # Increased for more workers
+            memory: 512Mi  # Increased for more workers + connection pooling
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 2000m     # 2 cores - needed for 4 workers under load
+            memory: 1Gi    # Increased for 4 workers + connection pooling
         
         livenessProbe:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
+          initialDelaySeconds: 30  # Allow app startup
+          periodSeconds: 20        # Check less frequently to reduce load
+          timeoutSeconds: 3        # Fast timeout - health check is now ultra-fast
+          failureThreshold: 5       # Allow more failures before restart (for transient issues)
         
         readinessProbe:
           httpGet:
             path: /health
             port: 5000
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
+          initialDelaySeconds: 15   # Allow DB pool initialization
+          periodSeconds: 10        # Check frequency
+          timeoutSeconds: 2         # Fast timeout - health check is now ultra-fast
+          failureThreshold: 3       # Allow 3 failures before marking not ready
       
       volumes:
       - name: gcs-key

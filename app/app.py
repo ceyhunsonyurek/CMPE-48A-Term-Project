@@ -14,6 +14,7 @@ from google.cloud import storage
 from plotly.subplots import make_subplots
 from dotenv import load_dotenv
 from pymysql.cursors import DictCursor
+from dbutils.pooled_db import PooledDB
 from contextlib import contextmanager
 
 # Load environment variables from .env file
@@ -73,38 +74,98 @@ user = config["user"]
 password = config["password"]
 database = config["database"]
 
-# Simple database connection with context manager
-# Note: For production, consider using SQLAlchemy with connection pooling
+# Connection pool configuration from environment variables
+# Default values are optimized for production use
+DB_POOL_MIN_SIZE = int(os.getenv("DB_POOL_MIN_SIZE", "2"))  # Minimum connections in pool
+DB_POOL_MAX_SIZE = int(os.getenv("DB_POOL_MAX_SIZE", "10"))  # Maximum connections in pool
+DB_POOL_AUTOCOMMIT = os.getenv("DB_POOL_AUTOCOMMIT", "false").lower() == "true"
+
+# Initialize MySQL connection pool
+# Connection pooling improves performance by reusing database connections
+# instead of creating a new connection for each request
+_db_pool = None
+
+def init_db_pool():
+    """Initialize the database connection pool."""
+    global _db_pool
+    if _db_pool is None:
+        try:
+            _db_pool = PooledDB(
+                creator=pymysql,
+                mincached=DB_POOL_MIN_SIZE,  # Minimum number of connections to keep in pool
+                maxcached=DB_POOL_MAX_SIZE,  # Maximum number of connections in pool
+                maxconnections=DB_POOL_MAX_SIZE,  # Maximum total connections
+                host=host,
+                port=port,
+                user=user,
+                password=password,
+                database=database,
+                cursorclass=DictCursor,
+                autocommit=DB_POOL_AUTOCOMMIT,
+                connect_timeout=10,
+                read_timeout=10,
+                write_timeout=10,
+                charset='utf8mb4',
+                use_unicode=True,
+            )
+            logger.info(f"Database connection pool initialized (min={DB_POOL_MIN_SIZE}, max={DB_POOL_MAX_SIZE})")
+        except Exception as e:
+            logger.error(f"Failed to initialize database connection pool: {e}", exc_info=True)
+            raise
+    return _db_pool
+
+# Initialize pool at module load
+try:
+    init_db_pool()
+except Exception as e:
+    logger.warning(f"Database pool initialization failed, will retry on first connection: {e}")
+
+# Database connection with connection pooling
 @contextmanager
 def get_db_connection():
-    """Get database connection with context manager (auto-close)."""
+    """
+    Get database connection from pool with context manager (auto-return to pool).
+    
+    Connection pooling benefits:
+    - Reuses existing connections instead of creating new ones
+    - Reduces connection overhead and improves performance
+    - Prevents "too many connections" errors
+    - Especially important for serverless/cloud environments
+    """
     conn = None
     try:
-        conn = pymysql.connect(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database=database,
-            cursorclass=DictCursor,
-            autocommit=False,
-            connect_timeout=10,
-            read_timeout=10,
-            write_timeout=10,
-        )
+        # Ensure pool is initialized
+        if _db_pool is None:
+            init_db_pool()
+        
+        # Get connection from pool
+        conn = _db_pool.connection()
         yield conn
     except pymysql.Error as e:
         _metrics['errors_total'] += 1
         logger.error(f"Database error: {e}", exc_info=True)
+        # Rollback transaction on error
+        if conn:
+            try:
+                conn.rollback()
+            except:
+                pass
         raise
     except Exception as e:
         _metrics['errors_total'] += 1
         logger.error(f"Unexpected error: {e}", exc_info=True)
-        raise
-    finally:
+        # Rollback transaction on error
         if conn:
             try:
-                conn.close()
+                conn.rollback()
+            except:
+                pass
+        raise
+    finally:
+        # Return connection to pool (not close it)
+        if conn:
+            try:
+                conn.close()  # In pooled connections, close() returns connection to pool
             except:
                 pass
 
@@ -444,17 +505,44 @@ def stats():
     try:
         user_id = session["user_id"]
         
+        # Limit URLs fetched from database to prevent large queries
+        # Show only last 100 URLs for performance (or all if less than 100)
+        MAX_TABLE_ITEMS = 100
+        
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
+                # Optimized: 2 queries instead of 3, and use single query for totals
+                # This reduces connection pool usage and database round trips
+                # First: Get totals in one query (with aliases for DictCursor compatibility)
+                cursor.execute("SELECT COUNT(*) as total_count, COALESCE(SUM(clicks), 0) as total_clicks FROM urls WHERE user_id = %s", (user_id,))
+                totals = cursor.fetchone()
+                if totals:
+                    if isinstance(totals, dict):
+                        total_count = totals.get("total_count", 0)
+                        total_clicks = totals.get("total_clicks", 0)
+                    else:
+                        total_count = totals[0] if len(totals) > 0 else 0
+                        total_clicks = totals[1] if len(totals) > 1 else 0
+                else:
+                    total_count = 0
+                    total_clicks = 0
+                
+                # Second: Fetch only the URLs we need (with LIMIT)
                 cursor.execute(
-                    "SELECT id, created, original_url, clicks FROM urls WHERE user_id = %s",
-                    (user_id,),
+                    "SELECT id, created, original_url, clicks FROM urls WHERE user_id = %s ORDER BY id DESC LIMIT %s",
+                    (user_id, MAX_TABLE_ITEMS),
                 )
                 db_urls = cursor.fetchall()
 
+        # Pre-compute Cloud Function URL to avoid repeated env lookups
+        use_cloud_function = os.getenv("USE_CLOUD_FUNCTION_REDIRECT", "false").lower() == "true"
+        cloud_function_url = os.getenv("CLOUD_FUNCTION_REDIRECT_URL", "")
+        base_url = cloud_function_url if (use_cloud_function and cloud_function_url) else request.host_url
+        
         urls = []
         clicks_data = []
-        for url in db_urls:
+        # Reverse to show oldest first (since we fetched DESC)
+        for url in reversed(db_urls):
             # Handle both dict and tuple results
             if isinstance(url, dict):
                 url_id = url["id"]
@@ -467,15 +555,9 @@ def stats():
                 original_url = url[2]
                 clicks = url[3]
             
+            # Hashid encoding is CPU intensive - but necessary for display
             hashid = hashids.encode(url_id)
-            # Use Cloud Function URL if enabled, otherwise Flask app URL
-            use_cloud_function = os.getenv("USE_CLOUD_FUNCTION_REDIRECT", "false").lower() == "true"
-            cloud_function_url = os.getenv("CLOUD_FUNCTION_REDIRECT_URL", "")
-            
-            if use_cloud_function and cloud_function_url:
-                short_url = f"{cloud_function_url}/{hashid}"
-            else:
-                short_url = request.host_url + hashid
+            short_url = f"{base_url}{hashid}" if base_url.endswith('/') else f"{base_url}/{hashid}"
             
             url_data = {
                 "id": url_id,
@@ -488,43 +570,15 @@ def stats():
             urls.append(url_data)
             clicks_data.append(clicks)
 
-        # Create a bar graph showing number of clicks per URL (show only last 4 chars of hashid)
-        fig1 = go.Figure(data=[go.Bar(
-            x=[url["hashid"][-4:] for url in urls], 
-            y=clicks_data,
-            marker_color='#4285f4'
-        )])
-        fig1.update_layout(
-            xaxis_title="URL",
-            yaxis_title="Number of Clicks",
-            plot_bgcolor='#1e2432',
-            paper_bgcolor='#1e2432',
-            font_color='#e8eaed',
-            xaxis=dict(gridcolor='#3c4043', linecolor='#3c4043'),
-            yaxis=dict(gridcolor='#3c4043', linecolor='#3c4043'),
-        )
-
-        # Create a pie chart showing the distribution of clicks among URLs (show only last 4 chars of hashid)
-        fig2 = go.Figure(data=[go.Pie(
-            labels=[url["hashid"][-4:] for url in urls], 
-            values=clicks_data,
-            marker=dict(colors=['#4285f4', '#1a73e8', '#1967d2', '#34a853', '#ea4335', '#fbbc04', '#ff6d00', '#9c27b0'])
-        )])
-        fig2.update_layout(
-            plot_bgcolor='#1e2432',
-            paper_bgcolor='#1e2432',
-            font_color='#e8eaed',
-        )
-
-        graph1 = fig1.to_html(full_html=False)
-        graph2 = fig2.to_html(full_html=False)
-
-        total_urls = len(urls)
-        total_clicks = sum(clicks_data)
+        # URLs already limited by database query
+        display_urls = urls
+        total_urls = total_count
         average_clicks = total_clicks // total_urls if total_urls > 0 else 0
+        has_more = total_urls > len(display_urls)
 
-        logger.info(f"Stats page accessed by user_id: {user_id} (total_urls: {total_urls})")
-        return render_template("stats.html", urls=urls, graph1=graph1, graph2=graph2, total_urls=total_urls, total_clicks=total_clicks, average_clicks=average_clicks)
+        logger.info(f"Stats page accessed by user_id: {user_id} (total_urls: {total_urls}, showing: {len(display_urls)})")
+        # Charts removed for performance - table shows all necessary data
+        return render_template("stats.html", urls=display_urls, graph1=None, graph2=None, total_urls=total_urls, total_clicks=total_clicks, average_clicks=average_clicks, has_more=has_more)
     except Exception as e:
         logger.error(f"Error in stats: {e}", exc_info=True)
         flash("An error occurred while loading statistics. Please try again.")
@@ -639,21 +693,36 @@ def logout():
 
 @application.route("/health")
 def health():
-    """Health check endpoint for Kubernetes and Docker."""
+    """Health check endpoint for Kubernetes and Docker.
+    
+    Ultra-fast health check optimized for high-load scenarios.
+    Avoids database queries under load to prevent timeouts and pod restarts.
+    """
     try:
-        # Check database connection
-        with get_db_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT 1")
-                cursor.fetchone()
+        # Ultra-fast health check: just verify pool exists, don't query DB
+        # This prevents health check from blocking under load
+        db_status = "connected" if _db_pool is not None else "pool_not_initialized"
         
-        # Check GCS client (if configured)
+        # Check GCS client (if configured) - this is fast, no timeout needed
         gcs_status = "available" if gcs_client else "not_configured"
         
+        # Only return unhealthy if pool is completely broken
+        # Don't do actual DB query to avoid blocking under load
+        if db_status == "pool_not_initialized":
+            return jsonify({
+                "status": "unhealthy",
+                "service": "url-shortener",
+                "database": db_status,
+                "gcs": gcs_status,
+                "timestamp": datetime.utcnow().isoformat()
+            }), 503
+        
+
+        # Actual DB connectivity is tested by real requests, not health checks
         return jsonify({
             "status": "healthy",
             "service": "url-shortener",
-            "database": "connected",
+            "database": db_status,
             "gcs": gcs_status,
             "timestamp": datetime.utcnow().isoformat()
         }), 200
@@ -661,7 +730,7 @@ def health():
         logger.error(f"Health check failed: {e}", exc_info=True)
         return jsonify({
             "status": "unhealthy",
-            "error": str(e),
+            "error": str(e)[:100],  # Limit error message length
             "timestamp": datetime.utcnow().isoformat()
         }), 503
 

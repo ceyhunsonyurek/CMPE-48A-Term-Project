@@ -1,4 +1,5 @@
 pymysql
+DBUtils
 hashids
 flask
 plotly
