@@ -98,11 +98,11 @@ spec:
         
         resources:
           requests:
-            cpu: 500m      # Increased for more workers
-            memory: 512Mi  # Increased for more workers + connection pooling
+            cpu: 300m
+            memory: 512Mi
           limits:
-            cpu: 2000m     # 2 cores - needed for 4 workers under load
-            memory: 1Gi    # Increased for 4 workers + connection pooling
+            cpu: 1000m
+            memory: 1Gi
         
         livenessProbe:
           httpGet:
