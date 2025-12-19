@@ -1,0 +1,863 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{\textbf{#1}}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\author{}
+\date{}
+
+\begin{document}
+
+\section{Technical Report: URL Shortener Cloud
+Deployment}\label{technical-report-url-shortener-cloud-deployment}
+
+\subsection{1. Cloud Architecture
+Diagram}\label{cloud-architecture-diagram}
+
+The URL Shortener application is deployed on Google Cloud Platform using
+a microservices architecture with containerized services, managed
+infrastructure, and serverless components.
+
+\begin{figure}
+\centering
+\pandocbounded{\includegraphics[keepaspectratio,alt={Cloud Architecture Diagram}]{architecture.png}}
+\caption{Cloud Architecture Diagram}
+\end{figure}
+
+\subsubsection{Architecture Overview}\label{architecture-overview}
+
+The system follows a \textbf{hybrid cloud-native architecture}
+combining:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Containerized services} (Flask application on GKE)
+\item
+  \textbf{Virtual machines} (MySQL database server)
+\item
+  \textbf{Serverless functions} (Cloud Function for URL redirection)
+\item
+  \textbf{Managed storage} (Cloud Storage for static assets)
+\end{itemize}
+
+
+\subsection{2. Component Description and
+Interactions}\label{component-description-and-interactions}
+
+\subsubsection{2.1 Flask Application (GKE
+Pods)}\label{flask-application-gke-pods}
+
+\textbf{Component}: Containerized Flask web application running on
+Google Kubernetes Engine
+
+\textbf{Architecture Type}: This is a \textbf{monolithic application}
+where backend and frontend run together in the same container. Flask
+serves both the API logic and renders HTML templates using Jinja2. There
+is no separate frontend service - all HTML/CSS/JavaScript is served
+directly by Flask pods.
+
+\textbf{Responsibilities}:
+\begin{itemize}
+\tightlist
+\item
+  User authentication (login/registration)
+\item
+  URL shortening with hashid encoding
+\item
+  QR code generation using Python \texttt{qrcode} library
+\item
+  Session management
+\end{itemize}
+
+\textbf{Pod Configuration}:
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Setting & Value \\
+\midrule\noalign{}
+\endhead
+GKE Node Machine Type & e2-small \\
+GKE Nodes & 3 (auto-scaled across zones for HA) \\
+GKE Region & us-east1 \\
+Pod Replicas & 2-10 (HPA controlled) \\
+CPU Request & 300m \\
+CPU Limit & 1000m \\
+Memory Request & 512Mi \\
+Memory Limit & 1Gi \\
+Container Port & 5000 \\
+Gunicorn Workers & 4 \\
+Gunicorn Threads & 2 per worker \\
+\bottomrule\noalign{}
+\end{longtable}
+
+\textbf{Health Probes}:
+\begin{longtable}[]{@{}llllll@{}}
+\toprule\noalign{}
+Probe & Path & Initial Delay & Period & Timeout & Failure Threshold \\
+\midrule\noalign{}
+\endhead
+Liveness & /health & 30s & 20s & 3s & 5 \\
+Readiness & /health & 15s & 10s & 2s & 3 \\
+\bottomrule\noalign{}
+\end{longtable}
+
+\textbf{Connection Pooling} (per pod):
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Setting & Value \\
+\midrule\noalign{}
+\endhead
+DB\_POOL\_MIN\_SIZE & 5 connections \\
+DB\_POOL\_MAX\_SIZE & 20 connections \\
+Total Max (2 pods) & 40 connections \\
+\bottomrule\noalign{}
+\end{longtable}
+
+\textbf{Interactions}:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{→ MySQL VM}: Reads/writes user data, URL records, and click statistics
+\item
+  \textbf{→ Cloud Storage}: Uploads generated QR code images
+\item
+  \textbf{← Load Balancer}: Receives HTTP requests from users
+\item
+  \textbf{← HPA}: Automatically scales based on CPU (70\%) and memory (80\%) utilization
+\end{itemize}
+
+\textbf{Configuration}:
+\begin{itemize}
+\tightlist
+\item
+  Environment variables from ConfigMap (non-sensitive) and Secrets (sensitive)
+\item
+  GCS authentication via service account key mounted as volume
+\end{itemize}
+
+
+\subsubsection{2.2 MySQL Database (Compute Engine
+VM)}\label{mysql-database-compute-engine-vm}
+
+\textbf{Component}: MySQL 8.0 server running on Ubuntu 22.04 LTS VM
+instance
+
+\textbf{VM Configuration}:
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Setting & Value \\
+\midrule\noalign{}
+\endhead
+VM Name & mysql-vm \\
+Zone & us-east1-b \\
+Machine Type & e2-small (2 vCPUs, 2GB RAM) \\
+Boot Disk & 20GB standard persistent disk \\
+OS Image & Ubuntu 22.04 LTS \\
+Internal IP & 10.142.0.15 \\
+External IP & 34.148.55.158 \\
+Network Tag & mysql-server \\
+\bottomrule\noalign{}
+\end{longtable}
+
+\textbf{Database Schema}:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{\texttt{users} table}: Stores user credentials (id, username, SHA256-hashed password).
+\item
+  \textbf{\texttt{urls} table}: Stores shortened URLs with original URL, owner user\_id, click count, and creation timestamp.
+\end{itemize}
+
+\textbf{Firewall Rules}:
+\begin{longtable}[]{@{}llll@{}}
+\toprule\noalign{}
+Rule Name & Source & Port & Purpose \\
+\midrule\noalign{}
+\endhead
+allow-mysql-from-gke & 10.0.0.0/8 & 3306 & GKE pods access \\
+allow-mysql-from-cloud-functions & 0.0.0.0/0 & 3306 & Cloud Function access \\
+\bottomrule\noalign{}
+\end{longtable}
+
+\textbf{Interactions}:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{← Flask Pods}: Handles database queries for user authentication, URL creation, and statistics
+\item
+  \textbf{← Cloud Function}: Processes URL lookup and click increment operations
+\item
+  \textbf{Network}: Protected by firewall rules with network tags
+\end{itemize}
+
+
+\subsubsection{2.3 Cloud Function (URL
+Redirect)}\label{cloud-function-url-redirect}
+
+\textbf{Component}: Google Cloud Function Gen2 for serverless URL
+redirection
+
+\textbf{Function Configuration}:
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Setting & Value \\
+\midrule\noalign{}
+\endhead
+Function Name & url-redirect \\
+Generation & Gen2 (Cloud Run based) \\
+Region & us-east1 \\
+Runtime & Python 3.11 \\
+Entry Point & url\_redirect \\
+Memory & 256MB \\
+Timeout & 30 seconds \\
+Min Instances & 0 (scales to zero) \\
+Max Instances & 10 \\
+Trigger & HTTP (unauthenticated) \\
+Function URL & https://us-east1-url-shortener-479913.cloudfunctions.net/url-redirect \\
+\bottomrule\noalign{}
+\end{longtable}
+
+\textbf{Connection Pooling}: The function maintains a small connection
+pool (1-5 connections) using DBUtils. Since Cloud Functions can reuse
+instances, the pool persists across invocations, reducing connection
+overhead.
+
+\textbf{Request Flow}:
+\begin{itemize}
+\tightlist
+\item
+  User clicks short URL (e.g., \texttt{/aB3d})
+\item
+  Cloud Function receives HTTP request
+\item
+  Extracts hashid from path
+\item
+  Decodes hashid using Hashids library (same salt as Flask app)
+\item
+  Queries MySQL for original URL:
+  \texttt{SELECT\ original\_url,\ clicks\ FROM\ urls\ WHERE\ id\ =\ ?}
+\item
+  Increments click count:
+  \texttt{UPDATE\ urls\ SET\ clicks\ =\ ?\ WHERE\ id\ =\ ?}
+\item
+  Returns HTTP 302 redirect to original URL
+\end{itemize}
+
+\textbf{Interactions}:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{→ MySQL VM}: Queries database for URL lookup and updates click count
+\item
+  \textbf{← Users}: Receives HTTP requests for short URLs
+\item
+  \textbf{→ Users}: Returns HTTP 302 redirect response
+\end{itemize}
+
+\textbf{Why Serverless for Redirects}:
+\begin{itemize}
+\tightlist
+\item
+  URL redirects are stateless operations (no session needed)
+\item
+  Low latency requirement (users expect instant redirects)
+\item
+  Variable traffic (scales to zero when not in use, saves cost)
+\item
+  Offloads redirect traffic from main Flask application
+\end{itemize}
+
+
+\subsubsection{2.4 Cloud Storage (GCS
+Bucket)}\label{cloud-storage-gcs-bucket}
+
+\textbf{Component}: Google Cloud Storage bucket for static asset storage
+
+\textbf{Responsibilities}:
+\begin{itemize}
+\tightlist
+\item
+  Stores QR code images generated by Flask application
+\item
+  Provides public URLs for QR code access
+\item
+  Versioning enabled for backup and recovery
+\end{itemize}
+
+\textbf{Interactions}:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{← Flask Pods}: Receives QR code image uploads after generation
+\item
+  \textbf{→ Users}: Serves QR code images via public URLs
+\item
+  \textbf{Authentication}: Uses GKE service account with Storage Object Admin role
+\end{itemize}
+
+\textbf{Storage Configuration}:
+\begin{itemize}
+\tightlist
+\item
+  Uniform bucket-level access enabled
+\item
+  Lifecycle rules for automatic cleanup of old objects
+\end{itemize}
+
+
+\subsubsection{2.5 Artifact Registry}\label{artifact-registry}
+
+\textbf{Component}: Docker image repository for container images
+
+\textbf{Responsibilities}:
+\begin{itemize}
+\tightlist
+\item
+  Stores Docker images for Flask application
+\item
+  Provides secure image pull access for GKE cluster
+\item
+  Supports versioning and image management
+\end{itemize}
+
+\textbf{Interactions}:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{← CI/CD or Manual Build}: Receives pushed Docker images
+\item
+  \textbf{→ GKE Pods}: Provides container images for pod deployment
+\end{itemize}
+
+
+\subsubsection{2.6 Horizontal Pod Autoscaler
+(HPA)}\label{horizontal-pod-autoscaler-hpa}
+
+\textbf{Component}: Kubernetes HPA for automatic scaling
+
+\textbf{Configuration}:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Min Replicas}: 2
+\item
+  \textbf{Max Replicas}: 10
+\item
+  \textbf{CPU Threshold}: 70\% utilization
+\item
+  \textbf{Memory Threshold}: 80\% utilization
+\end{itemize}
+
+\textbf{Scaling Behavior}:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Scale Up}: Immediate (0s stabilization), can double pods per minute or add 2 pods
+\item
+  \textbf{Scale Down}: 5-minute stabilization window, max 50\% reduction per minute
+\end{itemize}
+
+\textbf{Interactions}:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Monitors}: Pod CPU and memory metrics
+\item
+  \textbf{Controls}: Number of Flask application replicas
+\item
+  \textbf{Triggers}: Automatic scaling based on resource utilization
+\end{itemize}
+
+
+\subsubsection{2.7 Load Balancer Service}\label{load-balancer-service}
+
+\textbf{Component}: Kubernetes LoadBalancer service
+
+\textbf{Responsibilities}:
+\begin{itemize}
+\tightlist
+\item
+  Distributes incoming HTTP traffic across Flask pods
+\item
+  Provides external IP address for public access
+\item
+  Maintains session affinity (ClientIP) for 3 hours
+\end{itemize}
+
+\textbf{Session Affinity (Sticky Sessions)}:
+
+Since Flask uses in-memory cookie-based sessions, we configured the
+LoadBalancer with \texttt{sessionAffinity:\ ClientIP}. This ensures that
+requests from the same client IP are always routed to the same pod
+during a session.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Setting & Value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Session Affinity Type & ClientIP \\
+Timeout & 10800 seconds (3 hours) \\
+\end{longtable}
+}
+
+\textbf{How it works}:
+\begin{itemize}
+\tightlist
+\item
+  When a user first connects, the LoadBalancer picks a pod and remembers the client IP
+\item
+  All subsequent requests from that IP go to the same pod for 3 hours
+\item
+  This prevents session loss - if user A logs in on Pod 1, their session cookie data stays on Pod 1
+\end{itemize}
+
+\textbf{Why this is needed}:
+\begin{itemize}
+\tightlist
+\item
+  Flask stores session data in memory (not in a shared database)
+\item
+  Without sticky sessions, a user might log in on Pod 1, but their next request goes to Pod 2, which has no knowledge of their session
+\item
+  The user would appear logged out on every other request
+\end{itemize}
+
+\textbf{Trade-off}: Less optimal load distribution, but necessary for
+session consistency without external session storage (like Redis).
+
+\textbf{Interactions}:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{← Internet}: Receives user requests
+\item
+  \textbf{→ GKE Pods}: Routes requests to same pod based on client IP
+\item
+  \textbf{Port Mapping}: External port 80 → Container port 5000
+\end{itemize}
+
+
+\subsubsection{2.8 Network and Security}\label{network-and-security}
+
+\textbf{Firewall Rules}:
+\begin{itemize}
+\tightlist
+\item
+  \textbf{allow-mysql-from-gke}: Allows TCP 3306 from GKE cluster IP range (10.0.0.0/8) to MySQL VM
+\item
+  \textbf{allow-mysql-from-cloud-functions}: Allows TCP 3306 from Cloud Functions to MySQL VM
+\end{itemize}
+
+\textbf{Network Flow}:
+\begin{itemize}
+\tightlist
+\item
+  GKE pods communicate with MySQL via internal IP addresses
+\item
+  Cloud Function accesses MySQL through firewall-allowed connections
+\item
+  All inter-service communication happens within GCP network
+\end{itemize}
+
+
+\subsection{3. Deployment Process}\label{deployment-process}
+
+This section documents the actual deployment process we followed to
+deploy the URL Shortener application on GCP.
+
+\subsubsection{Phase 1: Project
+Preparation}\label{phase-1-project-preparation}
+
+We started by organizing the repository structure for cloud-native
+deployment:
+\begin{itemize}
+\tightlist
+\item
+  Created \texttt{app/} folder for Flask application code
+\item
+  Created \texttt{docker/} folder for Dockerfile and Docker-related files
+\item
+  Created \texttt{k8s/} folder for Kubernetes manifests
+\item
+  Created \texttt{cloud-functions/} folder for Cloud Function code
+\item
+  Created \texttt{vm-scripts/} folder for VM setup scripts
+\end{itemize}
+
+We migrated from AWS S3 to GCP Cloud Storage by replacing \texttt{boto3}
+with \texttt{google-cloud-storage} library and updating all template
+references.
+
+\subsubsection{Phase 2: Docker
+Containerization}\label{phase-2-docker-containerization}
+
+We created a production-ready Dockerfile with the following
+specifications:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Setting & Value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Base Image & python:3.9-slim \\
+WSGI Server & Gunicorn (4 workers, 2 threads) \\
+Port & 5000 \\
+User & Non-root (appuser) \\
+\end{longtable}
+}
+
+We encountered an issue where the container couldn't start due to Gradio
+client's \texttt{input()} call in non-interactive mode. We solved this
+by removing the external Gradio dependency and implementing internal QR
+code generation using the Python \texttt{qrcode} library.
+
+\subsubsection{Phase 3: GKE Cluster
+Setup}\label{phase-3-gke-cluster-setup}
+
+We created the GKE cluster with the following configuration:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Setting & Value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Cluster Name & url-shortener-cluster \\
+Region & us-east1 \\
+Machine Type & e2-small \\
+Requested Nodes & 1 \\
+Actual Nodes & 3 (GKE auto-scaled across zones for HA) \\
+Features & Auto-repair, Auto-upgrade enabled \\
+\end{longtable}
+}
+
+\textbf{Issue Encountered}: We initially tried us-central1 region but
+hit the \texttt{IN\_USE\_ADDRESSES} quota limit (limit: 4). Free trial
+accounts are not eligible for quota increases, so we switched to
+us-east1 region.
+
+\subsubsection{Phase 4: Artifact Registry and Image
+Push}\label{phase-4-artifact-registry-and-image-push}
+
+We set up Artifact Registry to store our Docker images:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Setting & Value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Repository Name & url-shortener-repo \\
+Location & us-central1 \\
+Image & url-shortener:latest \\
+\end{longtable}
+}
+
+\textbf{Issue Encountered}: Initial image pull failed with ``no match
+for platform in manifest'' error because the image was built for ARM
+architecture (M1 Mac). We fixed this by rebuilding with
+\texttt{-\/-platform\ linux/amd64} flag.
+
+\subsubsection{Phase 5: Kubernetes
+Deployment}\label{phase-5-kubernetes-deployment}
+
+We created and applied the following Kubernetes manifests:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5263}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.4737}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Manifest
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Purpose
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+deployment.yaml & Flask app with 2 replicas, resource limits, health
+probes \\
+service.yaml & LoadBalancer with session affinity (ClientIP, 3h
+timeout) \\
+configmap.yaml & Non-sensitive config (DB host, GCS bucket, etc.) \\
+secret.yaml & Sensitive data (DB password, Flask secret key) \\
+hpa.yaml & Auto-scaling (2-10 pods, CPU 70\%, Memory 80\%) \\
+\end{longtable}
+}
+
+\textbf{Issue Encountered}: GKE nodes couldn't pull images from Artifact
+Registry due to missing IAM permissions. We granted
+\texttt{roles/artifactregistry.reader} to the GKE service account.
+
+\textbf{Deployment Results}:
+\begin{itemize}
+\tightlist
+\item
+  2 pods running and ready
+\item
+  LoadBalancer external IP: \texttt{35.237.64.253}
+\item
+  Health check endpoint responding
+\end{itemize}
+
+\subsubsection{Phase 6: MySQL VM Setup}\label{phase-6-mysql-vm-setup}
+
+We created a Compute Engine VM for the MySQL database:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Setting & Value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+VM Name & mysql-vm \\
+Zone & us-east1-b \\
+Machine Type & e2-small \\
+OS & Ubuntu 22.04 LTS \\
+Internal IP & 10.142.0.15 \\
+External IP & 34.148.55.158 \\
+\end{longtable}
+}
+
+We created a setup script (\texttt{vm-scripts/setup-mysql.sh}) that:
+\begin{itemize}
+\tightlist
+\item
+  Installs MySQL server
+\item
+  Configures remote access (bind-address = 0.0.0.0)
+\item
+  Creates \texttt{urlshortener} database
+\item
+  Creates \texttt{appuser} with appropriate privileges
+\item
+  Creates \texttt{users} and \texttt{urls} tables with indexes
+\end{itemize}
+
+We also created a firewall rule (\texttt{allow-mysql-from-gke}) to allow
+TCP port 3306 from GKE cluster IP range (10.0.0.0/8).
+
+\subsubsection{Phase 7: Cloud Function
+Deployment}\label{phase-7-cloud-function-deployment}
+
+We deployed a Cloud Function for URL redirection:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5625}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.4375}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Setting
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Value
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Function Name & url-redirect \\
+Region & us-east1 \\
+Runtime & Python 3.11 \\
+Memory & 256MB \\
+Timeout & 30s \\
+Trigger & HTTP (unauthenticated) \\
+Function URL &
+https://us-east1-url-shortener-479913.cloudfunctions.net/url-redirect \\
+\end{longtable}
+}
+
+\textbf{Issue Encountered}: Cloud Function couldn't connect to MySQL VM
+using internal IP (10.142.0.15). VPC Connector creation failed due to
+quota/permission issues. As a workaround, we used the external IP
+(34.148.55.158) with a permissive firewall rule.
+
+\subsubsection{Phase 8: Final
+Integration}\label{phase-8-final-integration}
+
+After deploying the Cloud Function, we updated the Kubernetes ConfigMap
+with the function URL and restarted the deployment:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ExtensionTok{kubectl}\NormalTok{ apply }\AttributeTok{{-}f}\NormalTok{ k8s/configmap.yaml}
+\ExtensionTok{kubectl}\NormalTok{ rollout restart deployment url{-}shortener}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Issues Encountered and
+Solutions}\label{issues-encountered-and-solutions}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.4118}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5882}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Issue
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Solution
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Quota limit in us-central1 & Switched to us-east1 region \\
+ARM vs AMD64 image mismatch & Rebuilt with
+\texttt{-\/-platform\ linux/amd64} \\
+Artifact Registry permission denied & Granted
+\texttt{artifactregistry.reader} role to GKE SA \\
+Cloud Function can't reach MySQL internal IP & Used external IP with
+firewall rule (temporary workaround) \\
+Gradio client blocking container start & Replaced with internal
+\texttt{qrcode} library \\
+\end{longtable}
+}
+
+\subsubsection{Final Deployment State}\label{final-deployment-state}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Component & Status & Details \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+GKE Cluster & ✅ Running & 3 nodes, us-east1 \\
+Flask Pods & ✅ Running & 2 replicas, auto-scaling enabled \\
+MySQL VM & ✅ Running & e2-small, us-east1-b \\
+Cloud Function & ✅ Running & Gen2, us-east1 \\
+Cloud Storage & ✅ Running & url-shortener-assets bucket \\
+LoadBalancer & ✅ Running & External IP: 35.237.64.253 \\
+HPA & ✅ Active & 2-10 replicas \\
+\end{longtable}
+}
+
+\textbf{Total Deployment Time}: \textasciitilde9-12 days (including
+learning, debugging, and iterating)
+
+
+\end{document}

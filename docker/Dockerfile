@@ -30,7 +30,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD python -c "import socket; s=socket.socket(); s.settimeout(1); s.connect(('localhost', 5000)); s.close()" || exit 1
 
 # Use gunicorn for production
-# Worker count: (2 * CPU cores) + 1 = optimal for I/O-bound apps
-# With 1 CPU limit, use 4 workers for better concurrency
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--threads", "2", "--timeout", "120", "--keep-alive", "5", "app.app:application"]
 

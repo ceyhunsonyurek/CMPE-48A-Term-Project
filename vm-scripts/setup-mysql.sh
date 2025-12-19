@@ -56,6 +56,16 @@ CREATE TABLE IF NOT EXISTS urls (
 );
 EOF
 
+# Add additional indexes for performance optimization
+echo "Adding performance indexes..."
+sudo mysql urlshortener << EOF
+-- Composite index for ORDER BY id DESC queries filtered by user_id
+CREATE INDEX IF NOT EXISTS idx_user_id_id ON urls(user_id, id DESC);
+
+-- Show indexes
+SHOW INDEXES FROM urls;
+EOF
+
 echo "=== MySQL Setup Complete ==="
 echo "Database: urlshortener"
 echo "User: appuser"

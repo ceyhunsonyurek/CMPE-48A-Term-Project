@@ -1,0 +1,57 @@
+graph TB
+    subgraph Internet["Internet"]
+        Users[Users/Web Browsers]
+    end
+
+    subgraph GCP["Google Cloud Platform"]
+        subgraph LoadBalancer["Load Balancer"]
+            LB[GKE LoadBalancer Service]
+        end
+
+        subgraph GKE["GKE Cluster"]
+            subgraph HPA["Horizontal Pod Autoscaler"]
+                Pod[Flask App Pod<br/>1 of N replicas<br/>2-10 pods]
+            end
+        end
+
+        subgraph Compute["Compute Engine"]
+            MySQLVM[MySQL VM Instance<br/>e2-medium<br/>Ubuntu 20.04]
+        end
+
+        subgraph Serverless["Serverless"]
+            CF[Cloud Function<br/>URL Redirect<br/>Gen2]
+        end
+
+        subgraph Storage["Storage Services"]
+            GCS[Cloud Storage Bucket<br/>QR Code Images]
+            AR[Artifact Registry<br/>Docker Images]
+        end
+
+        subgraph Network["Network"]
+            FW1[Firewall Rule<br/>GKE → MySQL]
+            FW2[Firewall Rule<br/>CF → MySQL]
+        end
+    end
+
+    Users -->|HTTP/HTTPS| LB
+    LB -->|Load Balance| Pod
+    
+    Pod -->|MySQL Connection<br/>Port 3306| MySQLVM
+    Pod -->|Upload QR Codes| GCS
+    
+    Users -->|Short URL Click| CF
+    CF -->|MySQL Query<br/>Port 3306| MySQLVM
+    CF -->|HTTP 302 Redirect| Users
+    
+    HPA -->|Auto-scales<br/>2-10 replicas| Pod
+    
+    FW1 -.->|Allows| MySQLVM
+    FW2 -.->|Allows| MySQLVM
+    
+    AR -.->|Provides Images| Pod
+
+    style GKE fill:#4285f4,stroke:#333,color:#fff
+    style MySQLVM fill:#34a853,stroke:#333,color:#fff
+    style CF fill:#ea4335,stroke:#333,color:#fff
+    style GCS fill:#fbbc04,stroke:#333,color:#000
+    style AR fill:#fbbc04,stroke:#333,color:#000
